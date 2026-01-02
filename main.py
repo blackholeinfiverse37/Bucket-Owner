@@ -59,13 +59,17 @@ redis_client = None
 try:
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", 6379))
+    redis_username = os.getenv("REDIS_USERNAME", None)
+    redis_password = os.getenv("REDIS_PASSWORD", None)
+    
     redis_client = redis.Redis(
         host=redis_host,
         port=redis_port,
+        username=redis_username,
+        password=redis_password,
         decode_responses=True,
         socket_timeout=5,
-        socket_connect_timeout=5,
-        retry_on_timeout=True
+        socket_connect_timeout=5
     )
     redis_client.ping()
     logger.info(f"Connected to Redis at {redis_host}:{redis_port}")

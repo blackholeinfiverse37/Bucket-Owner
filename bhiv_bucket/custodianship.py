@@ -352,10 +352,14 @@ class CustodianshipSystem:
     def _establish_custodianship(self):
         """Formally establish custodianship"""
         try:
+            # Convert enum to string for JSON serialization
+            custodianship_data = self.custodianship_record.__dict__.copy()
+            custodianship_data["authority_level"] = self.custodianship_record.authority_level.value
+            
             # Store custodianship record
             self.truth_engine.store_artifact(
                 artifact_type=ArtifactType.CONFIGURATION,
-                content=self.custodianship_record.__dict__,
+                content=custodianship_data,
                 authority=BucketAuthority.DATA_SOVEREIGN,
                 metadata={"custodianship_establishment": True, "immutable": True}
             )

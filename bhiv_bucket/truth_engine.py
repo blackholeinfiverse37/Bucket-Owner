@@ -79,7 +79,7 @@ class TruthEngine:
     def _initialize_bucket(self):
         """Initialize the bucket with constitutional foundation"""
         try:
-            if self.mongo_client and self.mongo_client.db:
+            if self.mongo_client and self.mongo_client.db is not None:
                 # Create constitutional record if not exists
                 constitutional_record = {
                     "id": "constitutional_lock",
@@ -153,16 +153,26 @@ class TruthEngine:
                 }
             
             # Store in MongoDB
-            if self.mongo_client and self.mongo_client.db:
-                self.mongo_client.db[self.collection_name].insert_one(asdict(artifact))
+            if self.mongo_client and self.mongo_client.db is not None:
+                # Convert artifact to dict and handle enum serialization
+                artifact_dict = asdict(artifact)
+                artifact_dict['artifact_type'] = artifact.artifact_type.value
+                artifact_dict['authority'] = artifact.authority.value
+                
+                self.mongo_client.db[self.collection_name].insert_one(artifact_dict)
                 logger.info(f"Artifact stored in MongoDB: {artifact_id}")
             
             # Cache in Redis for fast access
             if self.redis_service and self.redis_service.is_connected():
                 cache_key = f"bucket:artifact:{artifact_id}"
+                # Convert artifact to dict with enum values for caching
+                cache_data = asdict(artifact)
+                cache_data['artifact_type'] = artifact.artifact_type.value
+                cache_data['authority'] = artifact.authority.value
+                
                 self.redis_service.client.set(
                     cache_key, 
-                    json.dumps(asdict(artifact)), 
+                    json.dumps(cache_data), 
                     ex=3600  # 1 hour cache
                 )
                 logger.debug(f"Artifact cached in Redis: {artifact_id}")
@@ -199,7 +209,7 @@ class TruthEngine:
                     return json.loads(cached)
             
             # Fallback to MongoDB
-            if self.mongo_client and self.mongo_client.db:
+            if self.mongo_client and self.mongo_client.db is not None:
                 artifact = self.mongo_client.db[self.collection_name].find_one(
                     {"id": artifact_id}
                 )
@@ -237,7 +247,7 @@ class TruthEngine:
     def get_artifact_children(self, parent_id: str) -> List[Dict[str, Any]]:
         """Get all children of an artifact"""
         try:
-            if not self.mongo_client or not self.mongo_client.db:
+            if not self.mongo_client or self.mongo_client.db is None:
                 return []
             
             children = list(self.mongo_client.db[self.collection_name].find(
@@ -290,7 +300,7 @@ class TruthEngine:
             
             if result["success"]:
                 # Update version number
-                if self.mongo_client and self.mongo_client.db:
+                if self.mongo_client and self.mongo_client.db is not None:
                     self.mongo_client.db[self.collection_name].update_one(
                         {"id": result["artifact_id"]},
                         {"$set": {"version": new_version}}
@@ -348,7 +358,7 @@ class TruthEngine:
             
             if result["success"]:
                 # Mark original as tombstoned (but don't delete)
-                if self.mongo_client and self.mongo_client.db:
+                if self.mongo_client and self.mongo_client.db is not None:
                     self.mongo_client.db[self.collection_name].update_one(
                         {"id": artifact_id},
                         {"$set": {"is_tombstone": True, "tombstoned_at": datetime.now().isoformat()}}
@@ -378,7 +388,7 @@ class TruthEngine:
                 "storage_health": "unknown"
             }
             
-            if self.mongo_client and self.mongo_client.db:
+            if self.mongo_client and self.mongo_client.db is not None:
                 collection = self.mongo_client.db[self.collection_name]
                 
                 # Total artifacts

@@ -39,7 +39,6 @@ class ConstitutionalLock:
     def __init__(self):
         self.version = "1.0.0"
         self.locked_at = datetime.now().isoformat()
-        self.constitution_hash = self._generate_constitution_hash()
         self.is_locked = True
         
         # Constitutional Rules (IMMUTABLE)
@@ -70,6 +69,9 @@ class ConstitutionalLock:
                 "authority": BucketAuthority.DATA_SOVEREIGN.value
             }
         }
+        
+        # Generate constitution hash after rules are defined
+        self.constitution_hash = self._generate_constitution_hash()
         
         logger.info(f"Constitutional Lock initialized - Version {self.version}")
         logger.info(f"Constitution Hash: {self.constitution_hash}")

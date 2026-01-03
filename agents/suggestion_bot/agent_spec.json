@@ -1,0 +1,35 @@
+{
+    "name": "suggestion_bot",
+    "domains": ["suggestions", "optimization", "workflow"],
+    "module_path": "agents.suggestion_bot.suggestion_bot",
+    "capabilities": {
+        "chainable": true,
+        "memory_access": false
+    },
+    "input_schema": {
+        "required": ["context"],
+        "properties": {
+            "context": {
+                "type": "string",
+                "description": "Context or situation for suggestions"
+            },
+            "category": {
+                "type": "string",
+                "enum": ["workflow", "productivity", "optimization", "general"],
+                "description": "Category of suggestions needed"
+            },
+            "schedule": {
+                "type": "object",
+                "description": "Schedule information from previous agent"
+            }
+        }
+    },
+    "sample_input": {
+        "context": "Need to optimize workflow processes",
+        "category": "workflow",
+        "schedule": {
+            "task": "Optimize workflow processes",
+            "priority": "high"
+        }
+    }
+}

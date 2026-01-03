@@ -1,0 +1,42 @@
+2026-01-03 14:43:08,060 - INFO - Constitutional Lock initialized - Version 1.0.0
+2026-01-03 14:43:08,061 - INFO - Constitution Hash: 6721540f6efb9b2cd9ea26b7bc7b0fb93ecf5ee0fae9df98a4d6958183d2850f
+C:\Users\Ashmit Pandey\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\pymongo\uri_parser_shared.py:379: UserWarning: Unknown option: ssl_cert_reqs. Did you mean one of (sockettimeoutms, heartbeatfrequencyms, localthresholdms) or maybe a camelCase version of one? Refer to docstring.
+  return get_validated_options(opts, warn)
+2026-01-03 14:43:13,028 - INFO - Successfully connected to MongoDB
+2026-01-03 14:43:14,926 - INFO - Redis connected successfully at redis-17252.c265.us-east-1-2.ec2.cloud.redislabs.com:17252
+2026-01-03 14:43:14,982 - INFO - Constitutional foundation already exists
+2026-01-03 14:43:14,983 - INFO - Truth Engine initialized with constitutional enforcement
+2026-01-03 14:43:14,983 - INFO - AI Integration Firewall initialized
+2026-01-03 14:43:14,983 - INFO - BHIV Governance system initialized
+2026-01-03 14:43:15,066 - INFO - Artifact stored in MongoDB: 7a39d080-769a-479c-a2a6-1afd34b214d8
+2026-01-03 14:43:15,733 - INFO - Artifact stored with constitutional compliance: 7a39d080-769a-479c-a2a6-1afd34b214d8
+2026-01-03 14:43:15,733 - INFO - Formal custodianship established
+2026-01-03 14:43:15,733 - INFO - Integration Gatekeeper initialized
+2026-01-03 14:43:15,733 - INFO - Executor Lane Enforcement initialized
+2026-01-03 14:43:15,733 - INFO - Escalation Protocol initialized
+2026-01-03 14:43:15,733 - INFO - Gatekeeping System initialized
+2026-01-03 14:43:15,733 - INFO - BHIV Bucket Truth Engine initialized with complete custodianship
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\auto_diagnostics\__pycache__
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\cashflow_analyzer\__pycache__
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\goal_recommender\__pycache__
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\gurukul
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\schedule_agent\__pycache__
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\vehicle_maintenance\__pycache__
+2026-01-03 14:43:15,955 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\workflow\__pycache__
+2026-01-03 14:43:15,970 - WARNING - No agent_spec.json found in c:\Users\Ashmit Pandey\Downloads\BHIV_Central_Depository-main\agents\__pycache__
+C:\Users\Ashmit Pandey\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\pymongo\uri_parser_shared.py:379: UserWarning: Unknown option: ssl_cert_reqs. Did you mean one of (sockettimeoutms, heartbeatfrequencyms, localthresholdms) or maybe a camelCase version of one? Refer to docstring.
+  return get_validated_options(opts, warn)
+2026-01-03 14:43:20,858 - INFO - Successfully connected to MongoDB
+2026-01-03 14:43:22,754 - INFO - Redis connected successfully at redis-17252.c265.us-east-1-2.ec2.cloud.redislabs.com:17252
+2026-01-03 14:43:24,490 - INFO - Connected to Redis at redis-17252.c265.us-east-1-2.ec2.cloud.redislabs.com:17252
+INFO:     Started server process [11140]
+INFO:     Waiting for application startup.
+2026-01-03 14:43:24,545 - INFO - Socket.IO disabled - continuing with core functionality
+2026-01-03 14:43:24,545 - WARNING - Event forwarding to Socket.IO disabled due to connection failure
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8000): only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+2026-01-03 14:43:24,656 - INFO - Closed Redis connection
+2026-01-03 14:43:24,656 - INFO - Disconnected from Socket.IO, MongoDB, and Redis
+INFO:     Application shutdown complete.

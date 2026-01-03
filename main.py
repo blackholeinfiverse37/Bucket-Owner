@@ -8,6 +8,7 @@ from communication.event_bus import EventBus
 from database.mongo_db import MongoDBClient
 from utils.redis_service import RedisService
 from utils.logger import get_logger, get_execution_logger
+from utils.validation import validate_agent_name, validate_basket_name, sanitize_input_data
 
 # BHIV Bucket Integration
 from bhiv_bucket import (
@@ -19,26 +20,35 @@ from bhiv_bucket import (
 logger = get_logger(__name__)
 execution_logger = get_execution_logger()
 
-# Initialize BHIV Bucket components
-truth_engine = get_truth_engine()
-ai_firewall = get_ai_firewall()
-governance_system = get_governance_system()
-custodianship_system = get_custodianship_system()
-gatekeeping_system = get_gatekeeping_system()
-
-logger.info("BHIV Bucket Truth Engine initialized with complete custodianship")
+# Initialize BHIV Bucket components with error handling
+try:
+    truth_engine = get_truth_engine()
+    ai_firewall = get_ai_firewall()
+    governance_system = get_governance_system()
+    custodianship_system = get_custodianship_system()
+    gatekeeping_system = get_gatekeeping_system()
+    logger.info("BHIV Bucket Truth Engine initialized with complete custodianship")
+except Exception as bucket_init_error:
+    logger.error(f"BHIV Bucket initialization failed: {bucket_init_error}")
+    # Set fallback values
+    truth_engine = None
+    ai_firewall = None
+    governance_system = None
+    custodianship_system = None
+    gatekeeping_system = None
+    logger.warning("Running without BHIV Bucket integration")
+from typing import Dict, Any, Optional, List
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+from pathlib import Path
+from datetime import datetime
+import uvicorn
 import socketio
 import os
 import asyncio
 import importlib
 import json
 import redis
-from typing import Dict, Optional
-from contextlib import asynccontextmanager
-from dotenv import load_dotenv
-from pathlib import Path
-from datetime import datetime
-import uvicorn
 
 load_dotenv()
 
@@ -55,12 +65,12 @@ redis_service = RedisService()
 sio = socketio.AsyncClient()
 
 # Redis client setup
-redis_client = None
+redis_client: Optional[redis.Redis] = None
 try:
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", 6379))
-    redis_username = os.getenv("REDIS_USERNAME", None)
-    redis_password = os.getenv("REDIS_PASSWORD", None)
+    redis_username = os.getenv("REDIS_USERNAME")
+    redis_password = os.getenv("REDIS_PASSWORD")
     
     redis_client = redis.Redis(
         host=redis_host,
@@ -76,6 +86,9 @@ try:
 except (redis.ConnectionError, redis.RedisError) as e:
     logger.warning(f"Redis connection failed: {e}. Redis features will be disabled")
     redis_client = None
+except Exception as e:
+    logger.error(f"Unexpected error connecting to Redis: {e}")
+    redis_client = None
 
 class AgentInput(BaseModel):
     agent_name: str = Field(..., description="Name of the agent to run")
@@ -87,7 +100,8 @@ class BasketInput(BaseModel):
     config: Optional[Dict] = Field(None, description="Custom basket configuration")
     input_data: Optional[Dict] = Field(None, description="Input data for the basket execution")
 
-async def connect_socketio():
+async def connect_socketio() -> bool:
+    """Connect to Socket.IO server with retry logic"""
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -102,7 +116,8 @@ async def connect_socketio():
     logger.error("Socket.IO connection failed after all retries")
     return False
 
-async def forward_event_to_socketio(event_type: str, message: Dict):
+async def forward_event_to_socketio(event_type: str, message: Dict[str, Any]) -> None:
+    """Forward events to Socket.IO server"""
     if sio.connected:
         try:
             await sio.emit(event_type, message)
@@ -147,14 +162,15 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://localhost:8080", "http://localhost:5000", "http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
+    allow_origins=["http://localhost:8000", "http://localhost:8001", "http://localhost:8002", "http://localhost:8003", "http://localhost:8004", "http://localhost:8080", "http://localhost:5000", "http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, Any]:
+    """Health check endpoint with comprehensive service status"""
     health_status = {
         "status": "healthy",
         "services": {
@@ -174,13 +190,19 @@ async def health_check():
 
     # Add BHIV Bucket status
     try:
-        bucket_status = get_bucket_status()
-        health_status["bhiv_bucket"] = {
-            "status": "active",
-            "constitutional_lock": bucket_status["constitutional_status"]["locked"],
-            "truth_engine": "operational",
-            "ai_firewall": "active"
-        }
+        if truth_engine and ai_firewall:
+            bucket_status = get_bucket_status()
+            health_status["bhiv_bucket"] = {
+                "status": "active",
+                "constitutional_lock": bucket_status["constitutional_status"]["locked"],
+                "truth_engine": "operational",
+                "ai_firewall": "active"
+            }
+        else:
+            health_status["bhiv_bucket"] = {
+                "status": "disabled",
+                "reason": "BHIV Bucket components not initialized"
+            }
     except Exception as e:
         health_status["bhiv_bucket"] = {
             "status": "error",
@@ -199,7 +221,8 @@ async def health_check():
     return health_status
 
 @app.get("/agents")
-async def get_agents(domain: str = Query(None)):
+async def get_agents(domain: Optional[str] = Query(None)) -> List[Dict[str, Any]]:
+    """Get all agents or filter by domain"""
     logger.debug(f"Fetching agents with domain: {domain}")
     try:
         if domain:
@@ -210,7 +233,8 @@ async def get_agents(domain: str = Query(None)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch agents: {str(e)}")
 
 @app.get("/baskets")
-async def get_baskets():
+async def get_baskets() -> Dict[str, Any]:
+    """Get all available baskets from registry and files"""
     logger.debug("Fetching available baskets")
     try:
         # Get baskets from registry
@@ -223,7 +247,7 @@ async def get_baskets():
         if baskets_dir.exists():
             for basket_file in baskets_dir.glob("*.json"):
                 try:
-                    with basket_file.open("r") as f:
+                    with basket_file.open("r", encoding="utf-8") as f:
                         basket_data = json.load(f)
                         basket_data["source"] = "file"
                         basket_data["filename"] = basket_file.name
@@ -243,70 +267,127 @@ async def get_baskets():
         raise HTTPException(status_code=500, detail=f"Failed to fetch baskets: {str(e)}")
 
 @app.post("/run-agent")
-async def run_agent(agent_input: AgentInput):
-    logger.debug(f"Running agent: {agent_input.agent_name}")
+async def run_agent(agent_input: AgentInput) -> Dict[str, Any]:
+    """Execute a single agent with comprehensive error handling"""
+    logger.info(f"Executing agent: {agent_input.agent_name}")
+    
     try:
-        if not registry.validate_compatibility(agent_input.agent_name, agent_input.input_data):
+        # Validate agent name
+        if not validate_agent_name(agent_input.agent_name):
+            logger.error(f"Invalid agent name: {agent_input.agent_name}")
+            raise HTTPException(status_code=400, detail="Invalid agent name format")
+        
+        # Sanitize input data
+        sanitized_input = sanitize_input_data(agent_input.input_data)
+        logger.info(f"Input sanitized for {agent_input.agent_name}")
+        
+        # Validate compatibility
+        if not registry.validate_compatibility(agent_input.agent_name, sanitized_input):
+            logger.error(f"Input validation failed for {agent_input.agent_name}")
             raise HTTPException(status_code=400, detail="Input data incompatible with agent")
         
+        # Get agent spec
         agent_spec = registry.get_agent(agent_input.agent_name)
         if not agent_spec:
+            logger.error(f"Agent not found: {agent_input.agent_name}")
             raise HTTPException(status_code=404, detail="Agent not found")
         
+        # Import module
         module_path = agent_spec.get("module_path", f"agents.{agent_input.agent_name}.{agent_input.agent_name}")
+        logger.info(f"Importing module: {module_path}")
+        
         try:
             agent_module = importlib.import_module(module_path)
+            logger.info(f"Module imported successfully: {module_path}")
         except ImportError as e:
             logger.error(f"Failed to import agent module {module_path}: {e}")
             raise HTTPException(status_code=500, detail=f"Agent module import failed: {str(e)}")
         
+        # Check process function
+        if not hasattr(agent_module, 'process'):
+            logger.error(f"Module missing process function: {module_path}")
+            raise HTTPException(status_code=500, detail="Agent module missing process function")
+        
+        # Create runner and execute
+        logger.info(f"Creating runner for {agent_input.agent_name}")
         runner = AgentRunner(agent_input.agent_name, stateful=agent_input.stateful)
-        result = await runner.run(agent_module, agent_input.input_data)
+        
+        logger.info(f"Executing agent {agent_input.agent_name}")
+        result = await runner.run(agent_module, sanitized_input)
+        
+        logger.info(f"Agent execution completed: {agent_input.agent_name}")
         runner.close()
         
-        # Process AI output through BHIV Bucket firewall
-        try:
-            firewall_result = ai_firewall.process_ai_output(
-                agent_name=agent_input.agent_name,
-                output_data=result,
-                artifact_class=ArtifactClass.AGENT_OUTPUT
-            )
-            
-            if firewall_result["success"]:
-                logger.info(f"Agent output stored in BHIV Bucket: {firewall_result.get('artifact_id')}")
-                # Add bucket metadata to result
-                result["bhiv_bucket"] = {
-                    "stored": True,
-                    "artifact_id": firewall_result.get("artifact_id"),
-                    "constitutional_compliance": firewall_result.get("constitutional_compliance", False),
-                    "firewall_action": firewall_result.get("action")
-                }
-            else:
-                logger.warning(f"Agent output not stored in BHIV Bucket: {firewall_result.get('reason')}")
+        # Check for errors in result
+        if "error" in result:
+            logger.error(f"Agent returned error: {result['error']}")
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # Process AI output through BHIV Bucket firewall (with comprehensive error handling)
+        if ai_firewall:
+            try:
+                logger.info(f"Processing through BHIV Bucket firewall: {agent_input.agent_name}")
+                firewall_result = ai_firewall.process_ai_output(
+                    agent_name=agent_input.agent_name,
+                    output_data=result,
+                    artifact_class=ArtifactClass.AGENT_OUTPUT
+                )
+                
+                if firewall_result["success"]:
+                    logger.info(f"Agent output stored in BHIV Bucket: {firewall_result.get('artifact_id')}")
+                    result["bhiv_bucket"] = {
+                        "stored": True,
+                        "artifact_id": firewall_result.get("artifact_id"),
+                        "constitutional_compliance": firewall_result.get("constitutional_compliance", False),
+                        "firewall_action": firewall_result.get("action")
+                    }
+                else:
+                    logger.warning(f"Agent output not stored in BHIV Bucket: {firewall_result.get('reason')}")
+                    result["bhiv_bucket"] = {
+                        "stored": False,
+                        "reason": firewall_result.get("reason"),
+                        "constitutional_compliance": False
+                    }
+                    
+            except Exception as bucket_error:
+                logger.warning(f"BHIV Bucket processing error: {bucket_error}")
+                # Don't fail the entire request due to bucket issues
                 result["bhiv_bucket"] = {
                     "stored": False,
-                    "reason": firewall_result.get("reason"),
+                    "error": str(bucket_error),
                     "constitutional_compliance": False
                 }
-                
-        except Exception as bucket_error:
-            logger.warning(f"BHIV Bucket processing error: {bucket_error}")
+        else:
+            # BHIV Bucket not available
+            logger.info(f"BHIV Bucket not available for {agent_input.agent_name}")
             result["bhiv_bucket"] = {
                 "stored": False,
-                "error": str(bucket_error),
+                "reason": "BHIV Bucket not initialized",
                 "constitutional_compliance": False
             }
         
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+        logger.info(f"Successfully completed agent execution: {agent_input.agent_name}")
         return result
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(f"Agent execution failed: {e}")
-        mongo_client.store_log(agent_input.agent_name, f"Execution error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Store error in MongoDB if available
+        try:
+            if mongo_client:
+                mongo_client.store_log(agent_input.agent_name, f"Execution error: {str(e)}")
+        except Exception as mongo_error:
+            logger.warning(f"Failed to store error in MongoDB: {mongo_error}")
+        
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
 
 @app.post("/run-basket")
-async def execute_basket(basket_input: BasketInput):
+async def execute_basket(basket_input: BasketInput) -> Dict[str, Any]:
     """Execute a basket with enhanced logging and error handling"""
     logger.info(f"Executing basket: {basket_input}")
 
@@ -411,7 +492,8 @@ async def execute_basket(basket_input: BasketInput):
         raise HTTPException(status_code=500, detail=error_msg)
 
 @app.post("/create-basket")
-async def create_basket(basket_data: Dict):
+async def create_basket(basket_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new basket configuration"""
     logger.debug(f"Creating basket: {basket_data}")
     try:
         basket_name = basket_data.get("name")
@@ -751,7 +833,7 @@ async def create_artifact_version(parent_id: str, version_data: Dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/bucket/artifacts/{artifact_id}")
-async def create_artifact_tombstone(artifact_id: str, deletion_data: Optional[Dict] = None):
+async def create_artifact_tombstone(artifact_id: str, deletion_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Create tombstone for artifact (constitutional deletion)"""
     try:
         deletion_reason = "user_request"
@@ -799,7 +881,7 @@ async def get_governance_checklist(authority: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/governance/validate")
-async def validate_governance_action(validation_request: Dict):
+async def validate_governance_action(validation_request: Dict[str, Any]) -> Dict[str, Any]:
     """Validate if authority can perform action"""
     try:
         action = validation_request.get("action")
@@ -809,13 +891,16 @@ async def validate_governance_action(validation_request: Dict):
             raise HTTPException(status_code=400, detail="Missing action or authority")
         
         # Convert string to BucketAuthority enum
-        authority_enum = BucketAuthority(authority.lower())
+        try:
+            authority_enum = BucketAuthority(authority.lower())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid authority level: {authority}")
         
         validation_result = governance_system.validate_authority_action(action, authority_enum)
         return validation_result
         
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid authority level: {authority}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to validate governance action: {e}")
         raise HTTPException(status_code=500, detail=str(e))

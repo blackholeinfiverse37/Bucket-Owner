@@ -1,5 +1,5 @@
 {
     "basket_name": "workflow_optimizer",
-    "agents": ["schedule_agent", "suggestion_bot"],
+    "agents": ["schedule_agent", "workflow_agent"],
     "execution_strategy": "sequential"
 }

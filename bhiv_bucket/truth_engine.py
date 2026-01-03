@@ -102,9 +102,25 @@ class TruthEngine:
                     logger.info("Constitutional foundation established in bucket")
                 else:
                     logger.info("Constitutional foundation already exists")
+            else:
+                logger.warning("MongoDB not available - using Redis-only mode")
+                # Store constitutional record in Redis as fallback
+                if self.redis_service and self.redis_service.is_connected():
+                    constitutional_key = "bucket:constitutional_lock"
+                    constitutional_data = {
+                        "id": "constitutional_lock",
+                        "content": CONSTITUTIONAL_LOCK.get_constitutional_status(),
+                        "created_at": CONSTITUTIONAL_LOCK.locked_at
+                    }
+                    self.redis_service.client.set(
+                        constitutional_key,
+                        json.dumps(constitutional_data)
+                    )
+                    logger.info("Constitutional foundation established in Redis")
                     
         except Exception as e:
-            logger.warning(f"Could not initialize bucket in MongoDB: {e}")
+            logger.warning(f"Could not initialize bucket: {e}")
+            logger.info("System will continue with limited functionality")
     
     def _generate_content_hash(self, content: Dict[str, Any]) -> str:
         """Generate immutable hash of content"""
@@ -152,30 +168,48 @@ class TruthEngine:
                     "details": validation_result["errors"]
                 }
             
-            # Store in MongoDB
+            # Store in MongoDB (if available)
+            mongodb_stored = False
             if self.mongo_client and self.mongo_client.db is not None:
-                # Convert artifact to dict and handle enum serialization
-                artifact_dict = asdict(artifact)
-                artifact_dict['artifact_type'] = artifact.artifact_type.value
-                artifact_dict['authority'] = artifact.authority.value
-                
-                self.mongo_client.db[self.collection_name].insert_one(artifact_dict)
-                logger.info(f"Artifact stored in MongoDB: {artifact_id}")
+                try:
+                    # Convert artifact to dict and handle enum serialization
+                    artifact_dict = asdict(artifact)
+                    artifact_dict['artifact_type'] = artifact.artifact_type.value
+                    artifact_dict['authority'] = artifact.authority.value
+                    
+                    self.mongo_client.db[self.collection_name].insert_one(artifact_dict)
+                    logger.info(f"Artifact stored in MongoDB: {artifact_id}")
+                    mongodb_stored = True
+                except Exception as e:
+                    logger.warning(f"Failed to store in MongoDB: {e}")
             
-            # Cache in Redis for fast access
+            # Always cache in Redis for fast access
+            redis_stored = False
             if self.redis_service and self.redis_service.is_connected():
-                cache_key = f"bucket:artifact:{artifact_id}"
-                # Convert artifact to dict with enum values for caching
-                cache_data = asdict(artifact)
-                cache_data['artifact_type'] = artifact.artifact_type.value
-                cache_data['authority'] = artifact.authority.value
-                
-                self.redis_service.client.set(
-                    cache_key, 
-                    json.dumps(cache_data), 
-                    ex=3600  # 1 hour cache
-                )
-                logger.debug(f"Artifact cached in Redis: {artifact_id}")
+                try:
+                    cache_key = f"bucket:artifact:{artifact_id}"
+                    # Convert artifact to dict with enum values for caching
+                    cache_data = asdict(artifact)
+                    cache_data['artifact_type'] = artifact.artifact_type.value
+                    cache_data['authority'] = artifact.authority.value
+                    
+                    self.redis_service.client.set(
+                        cache_key, 
+                        json.dumps(cache_data), 
+                        ex=86400  # 24 hour cache for persistence
+                    )
+                    logger.debug(f"Artifact cached in Redis: {artifact_id}")
+                    redis_stored = True
+                except Exception as e:
+                    logger.warning(f"Failed to store in Redis: {e}")
+            
+            # Ensure at least one storage method worked
+            if not mongodb_stored and not redis_stored:
+                return {
+                    "success": False,
+                    "error": "Failed to store artifact in any storage system",
+                    "constitutional_compliance": False
+                }
             
             # Log constitutional compliance
             logger.info(f"Artifact stored with constitutional compliance: {artifact_id}")
@@ -187,7 +221,11 @@ class TruthEngine:
                 "artifact_id": artifact_id,
                 "content_hash": content_hash,
                 "constitutional_compliance": True,
-                "warnings": validation_result.get("warnings", [])
+                "warnings": validation_result.get("warnings", []),
+                "storage_status": {
+                    "mongodb": mongodb_stored,
+                    "redis": redis_stored
+                }
             }
             
         except Exception as e:

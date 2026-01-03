@@ -1,11 +1,13 @@
+from typing import Dict, List, Optional, Any
+from utils.logger import get_logger
+import os
+from datetime import datetime, timedelta
 import redis
 import json
 import time
 import uuid
-from typing import Dict, List, Optional, Any
-from utils.logger import logger
-import os
-from datetime import datetime, timedelta
+
+logger = get_logger(__name__)
 
 class RedisService:
     """Enhanced Redis service for agent and basket execution management"""
@@ -231,7 +233,7 @@ class RedisService:
         """Generate unique execution ID"""
         return f"{int(time.time())}_{uuid.uuid4().hex[:8]}"
 
-    def get_basket_executions(self, basket_name: str) -> list:
+    def get_basket_executions(self, basket_name: str) -> List[str]:
         """Get all execution IDs for a specific basket"""
         if not self.connected:
             return []
@@ -239,7 +241,7 @@ class RedisService:
         try:
             # Get execution IDs from the basket executions list
             executions = self.client.lrange(f"basket:{basket_name}:executions", 0, -1)
-            return [exec_id.decode() if isinstance(exec_id, bytes) else exec_id for exec_id in executions]
+            return [exec_id if isinstance(exec_id, str) else exec_id.decode() for exec_id in executions]
         except Exception as e:
             logger.error(f"Error getting basket executions: {e}")
             return []

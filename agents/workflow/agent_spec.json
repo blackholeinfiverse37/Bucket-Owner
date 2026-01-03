@@ -1,30 +1,29 @@
 {
     "name": "workflow_agent",
     "domains": ["workflow", "optimization"],
-    "module_path": "agents.workflow.workflow_main",
+    "module_path": "agents.workflow.workflow_agent",
     "capabilities": {
         "chainable": true,
         "memory_access": false
     },
     "input_schema": {
-        "required": ["workflow_request"],
+        "required": ["task"],
         "properties": {
+            "task": {
+                "type": "string",
+                "description": "Task or workflow to optimize"
+            },
+            "priority": {
+                "type": "string",
+                "description": "Task priority level"
+            },
+            "schedule": {
+                "type": "object",
+                "description": "Schedule information from previous agent"
+            },
             "workflow_request": {
                 "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "object",
-                        "properties": {
-                            "department": {"type": "string"},
-                            "action": {"type": "string"},
-                            "current_process": {"type": "string"},
-                            "pain_points": {"type": "array", "items": {"type": "string"}},
-                            "goals": {"type": "array", "items": {"type": "string"}}
-                        },
-                        "required": ["department", "action"]
-                    }
-                },
-                "required": ["content"]
+                "description": "Detailed workflow request"
             }
         }
     },
@@ -37,15 +36,8 @@
         }
     },
     "sample_input": {
-        "workflow_request": {
-            "content": {
-                "department": "Finance",
-                "action": "optimize",
-                "current_process": "Manual invoice processing",
-                "pain_points": ["Time-consuming", "Error-prone"],
-                "goals": ["Reduce processing time", "Improve accuracy"]
-            }
-        }
+        "task": "Optimize workflow processes",
+        "priority": "high"
     },
     "sample_output": {
         "recommendations": [

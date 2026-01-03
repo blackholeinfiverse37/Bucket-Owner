@@ -3,7 +3,9 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, Optional, List
-from utils.logger import logger
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 class AgentRegistry:
     def __init__(self, agents_dir: str, config_file: str = "agents_and_baskets.yaml"):
         self.agents_dir = Path(agents_dir)
@@ -58,6 +60,15 @@ class AgentRegistry:
             if basket.get("name") == basket_name or basket.get("basket_name") == basket_name:
                 return basket
         return None
+
+    def get_agents_by_domain(self, domain: str) -> List[Dict]:
+        """Get agents filtered by domain"""
+        matching_agents = []
+        for agent_name, agent_spec in self.agents.items():
+            agent_domains = agent_spec.get("domains", [])
+            if domain in agent_domains:
+                matching_agents.append(agent_spec)
+        return matching_agents
 
     def validate_compatibility(self, agent_name: str, input_data: Dict) -> bool:
         agent_spec = self.get_agent(agent_name)

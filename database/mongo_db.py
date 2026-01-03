@@ -27,17 +27,38 @@ class MongoDBClient:
         for attempt in range(self.max_retries):
             try:
                 logger.debug(f"Attempting MongoDB connection (attempt {attempt + 1})")
-                self.client = MongoClient(mongo_uri)
-                self.db = self.client["workflow_ai"]
+                
+                # Configure MongoDB client with SSL settings
+                self.client = MongoClient(
+                    mongo_uri,
+                    serverSelectionTimeoutMS=30000,
+                    connectTimeoutMS=20000,
+                    socketTimeoutMS=20000,
+                    ssl=True,
+                    tlsAllowInvalidCertificates=True,  # More explicit SSL setting
+                    retryWrites=True
+                )
+                
+                # Use the database name from URI or default
+                if 'bhiv_bucket' in mongo_uri:
+                    self.db = self.client["bhiv_bucket"]
+                else:
+                    self.db = self.client["workflow_ai"]
+                
+                # Test connection
                 self.client.admin.command('ping')
                 logger.info("Successfully connected to MongoDB")
                 return
+                
             except Exception as e:
                 logger.error(f"MongoDB connection attempt {attempt + 1} failed: {e}")
                 if attempt < self.max_retries - 1:
                     time.sleep(self.retry_delay * (2 ** attempt))
         
         logger.error("Failed to connect to MongoDB after all retries")
+        logger.warning("System will continue with Redis-only storage")
+        self.client = None
+        self.db = None
 
     def store_log(self, agent_name: str, message: str, details: Optional[Dict] = None):
         if self.db is None:

@@ -36,7 +36,8 @@ if parent_dir not in sys.path:
 
 # Import project dependencies
 try:
-    from utils.logger import logger
+    from utils.logger import get_logger
+    logger = get_logger(__name__)
 except ImportError:
     # Fallback logging if utils not available
     logging.basicConfig(level=logging.INFO)

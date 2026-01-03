@@ -1,12 +1,15 @@
-import redis
-import json
-import os
 from typing import Dict, Any, Optional
-from utils.logger import logger
+from utils.logger import get_logger
 from database.mongo_db import MongoDBClient
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = get_logger(__name__)
+
+import redis
+import json
+import os
 
 class AgentRunner:
     def __init__(self, agent_name: str, stateful: bool = False):

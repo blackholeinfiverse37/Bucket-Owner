@@ -1,0 +1,32 @@
+{
+    "name": "schedule_agent",
+    "domains": ["scheduling", "workflow", "optimization"],
+    "module_path": "agents.schedule_agent.schedule_agent",
+    "capabilities": {
+        "chainable": true,
+        "memory_access": false
+    },
+    "input_schema": {
+        "required": ["task"],
+        "properties": {
+            "task": {
+                "type": "string",
+                "description": "Task or workflow to schedule"
+            },
+            "priority": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Task priority level"
+            },
+            "deadline": {
+                "type": "string",
+                "description": "Task deadline (optional)"
+            }
+        }
+    },
+    "sample_input": {
+        "task": "Optimize workflow processes",
+        "priority": "high",
+        "deadline": "2024-02-01"
+    }
+}
